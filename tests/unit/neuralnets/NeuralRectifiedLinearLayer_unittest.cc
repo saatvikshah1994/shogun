@@ -47,9 +47,9 @@ class NeuralRectifiedLinearLayerTest  : public ::testing::Test {
  public:
 
   template <typename T>
-  SGMatrix<T> CreateRandSGMat(int32_t num_features, int32_t num_samples,
-  		T lower_bound, T upper_bound) {
-	  auto data_batch = SGMatrix<T>(num_features, num_samples);
+  SGMatrix<T> create_rand_sgmat(int32_t num_rows, int32_t num_cols,
+								T lower_bound, T upper_bound) {
+	  auto data_batch = SGMatrix<T>(num_rows, num_cols);
 	  for (int32_t i=0; i<data_batch.num_rows*data_batch.num_cols; i++) {
 		  data_batch[i] = CMath::random(lower_bound, upper_bound);
 	  }
@@ -57,10 +57,10 @@ class NeuralRectifiedLinearLayerTest  : public ::testing::Test {
   }
 
   template <typename T>
-  auto CreateRandSGMatAndInputLayer(
-  		int32_t num_features, int32_t num_samples,
-  		T lower_bound, T upper_bound) {
-	  auto data_batch = CreateRandSGMat(num_features, num_samples, lower_bound, upper_bound);
+  auto create_rand_input_layer(
+		  int32_t num_features, int32_t num_samples,
+		  T lower_bound, T upper_bound) {
+	  auto data_batch = create_rand_sgmat(num_features, num_samples, lower_bound, upper_bound);
 	  // Can't use unique_ptr here due to "unref_all"
 	  auto input_layer = new CNeuralInputLayer(data_batch.num_rows);
 	  input_layer->set_batch_size(data_batch.num_cols);
@@ -68,9 +68,9 @@ class NeuralRectifiedLinearLayerTest  : public ::testing::Test {
 	  return std::make_tuple(data_batch, input_layer);
   }
 
-  auto InitNeuralLinearLayer(CNeuralLinearLayer* layer,
-  		CDynamicObjectArray* layers, SGVector<int32_t> input_indices,
-  		int32_t batch_size, double sigma) {
+  auto init_neural_linear_layer(CNeuralLinearLayer *layer,
+								CDynamicObjectArray *layers, SGVector<int32_t> input_indices,
+								int32_t batch_size, double sigma) {
 	  layer->initialize_neural_layer(layers, input_indices);
 	  SGVector<float64_t> params(layer->get_num_parameters());
 	  SGVector<bool> param_regularizable(layer->get_num_parameters());
@@ -96,14 +96,14 @@ TEST_F(NeuralRectifiedLinearLayerTest, compute_activations)
 	// initialize some random inputs
 	SGMatrix<float64_t> x;
 	CNeuralInputLayer* input;
-	std::tie(x, input) = CreateRandSGMatAndInputLayer<float64_t>(12, 3, -10.0, 10.0);
+	std::tie(x, input) = create_rand_input_layer<float64_t>(12, 3, -10.0, 10.0);
 	m_layers->append_element(input);
 
 	// initialize the layer
 	CNeuralRectifiedLinearLayer layer(9);
 	SGVector<int32_t> input_indices(1);
 	input_indices[0] = 0;
-	auto params = InitNeuralLinearLayer(&layer, m_layers.get(), input_indices, x.num_cols, 1.0);
+	auto params = init_neural_linear_layer(&layer, m_layers.get(), input_indices, x.num_cols, 1.0);
 	SGMatrix<float64_t> A = layer.get_activations();
 
 	// manually compute the layer's activations
@@ -141,8 +141,8 @@ TEST_F(NeuralRectifiedLinearLayerTest, compute_parameter_gradients_hidden) {
 	// initialize some random inputs
 	SGMatrix<float64_t> x1, x2;
 	CNeuralInputLayer *input1, *input2;
-	std::tie(x1, input1) = CreateRandSGMatAndInputLayer<float64_t>(12, 3, -10.0, 10.0);
-	std::tie(x2, input2) = CreateRandSGMatAndInputLayer<float64_t>(7, 3, -10.0, 10.0);
+	std::tie(x1, input1) = create_rand_input_layer<float64_t>(12, 3, -10.0, 10.0);
+	std::tie(x2, input2) = create_rand_input_layer<float64_t>(7, 3, -10.0, 10.0);
 	m_layers->append_element(input1);
 	m_layers->append_element(input2);
 
@@ -152,14 +152,14 @@ TEST_F(NeuralRectifiedLinearLayerTest, compute_parameter_gradients_hidden) {
 	SGVector<int32_t> input_indices_hid(2);
 	input_indices_hid[0] = 0;
 	input_indices_hid[1] = 1;
-	auto param_hid = InitNeuralLinearLayer(layer_hid, m_layers.get(), input_indices_hid, x1.num_cols, 0.01);
+	auto param_hid = init_neural_linear_layer(layer_hid, m_layers.get(), input_indices_hid, x1.num_cols, 0.01);
 
 	// initialize the output layer
-	auto y = CreateRandSGMat(9, 3, 1.0, 0.0);
+	auto y = create_rand_sgmat<float64_t>(9, 3, 1.0, 0.0);
 	CNeuralLinearLayer layer_out(y.num_rows);
 	SGVector<int32_t> input_indices_out(1);
 	input_indices_out[0] = 2;
-	auto param_out = InitNeuralLinearLayer(&layer_out, m_layers.get(), input_indices_out, x1.num_cols, 0.01);
+	auto param_out = init_neural_linear_layer(&layer_out, m_layers.get(), input_indices_out, x1.num_cols, 0.01);
 
 	// compute gradients
 	layer_hid->get_activation_gradients().zero();
